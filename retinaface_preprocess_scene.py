@@ -1,0 +1,515 @@
+from manimlib import *
+from pathlib import Path
+from PIL import Image
+
+
+class RetinaFacePreprocessScene(Scene):
+    def tex_escape(self, text):
+        replacements = {
+            "\\": r"\textbackslash{}",
+            "&": r"\&",
+            "%": r"\%",
+            "$": r"\$",
+            "#": r"\#",
+            "_": r"\_",
+            "{": r"\{",
+            "}": r"\}",
+            "~": r"\textasciitilde{}",
+            "^": r"\textasciicircum{}",
+        }
+        return "".join(replacements.get(char, char) for char in str(text))
+
+    def make_rgb_channel_files(self, source="croped.png", size=336):
+        output_dir = Path(__file__).with_name(".generated") / "rgb_channels"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        source_path = Path(__file__).with_name(source)
+        image = Image.open(source_path).convert("RGB")
+        resample = getattr(Image, "Resampling", Image).BILINEAR
+        image = image.resize((size, size), resample)
+        r, g, b = image.split()
+
+        channel_specs = [
+            ("R", Image.merge("RGB", (r, Image.new("L", image.size), Image.new("L", image.size)))),
+            ("G", Image.merge("RGB", (Image.new("L", image.size), g, Image.new("L", image.size)))),
+            ("B", Image.merge("RGB", (Image.new("L", image.size), Image.new("L", image.size), b))),
+        ]
+
+        paths = {}
+        for name, channel_image in channel_specs:
+            path = output_dir / f"croped_{name}.png"
+            channel_image.save(path)
+            paths[name] = str(path)
+        return paths
+
+    def mono(self, text, font_size=22, color=WHITE, **kwargs):
+        return TexText(
+            self.tex_escape(text),
+            font_size=font_size,
+            color=color,
+            **kwargs,
+        )
+
+    def tech_mono(self, text, font_size=22, color=WHITE, **kwargs):
+        return TexText(
+            r"\texttt{" + self.tex_escape(text) + "}",
+            font_size=font_size,
+            color=color,
+            **kwargs,
+        )
+
+    def latex_text(self, text, font_size=22, color=WHITE, **kwargs):
+        return TexText(
+            text,
+            font_size=font_size,
+            color=color,
+            **kwargs,
+        )
+
+    def label_stack(self, lines, font_size=20, color=WHITE, buff=0.08):
+        labels = VGroup(*[
+            self.mono(line, font_size=font_size, color=color)
+            for line in lines
+        ])
+        labels.arrange(DOWN, buff=buff)
+        return labels
+
+    def technical_tag(self, lines, font_size=18, width=1.85):
+        text = VGroup(*[
+            self.tech_mono(line, font_size=font_size, color=WHITE)
+            for line in lines
+        ])
+        text.arrange(DOWN, buff=0.05)
+        bg = RoundedRectangle(
+            width=width,
+            height=text.get_height() + 0.28,
+            corner_radius=0.08,
+            stroke_color=WHITE,
+            stroke_width=1.2,
+            fill_color=BLACK,
+            fill_opacity=0.72,
+        )
+        text.move_to(bg)
+        return VGroup(bg, text)
+
+    def block(
+        self,
+        title,
+        lines,
+        width=2.2,
+        height=1.15,
+        fill_color=GREY_E,
+        fill_opacity=0.85,
+        stroke_color=GREY_B,
+        text_color=WHITE,
+        detail_color=GREY_A,
+    ):
+        box = RoundedRectangle(
+            width=width,
+            height=height,
+            corner_radius=0.12,
+            stroke_color=stroke_color,
+            stroke_width=1.7,
+            fill_color=fill_color,
+            fill_opacity=fill_opacity,
+        )
+        title_mob = self.mono(title, font_size=23, color=text_color)
+        detail = self.label_stack(lines, font_size=15, color=detail_color, buff=0.05)
+        content = VGroup(title_mob, detail)
+        content.arrange(DOWN, buff=0.13)
+        content.move_to(box)
+        return VGroup(box, content)
+
+    def deterministic_block(self, title, lines, width=2.45, height=1.2):
+        return self.block(
+            title,
+            lines,
+            width=width,
+            height=height,
+            fill_color=WHITE,
+            fill_opacity=0.94,
+            stroke_color=WHITE,
+            text_color=BLACK,
+            detail_color=GREY_E,
+        )
+
+    def arrow_between(self, left, right, color=GREY_A, buff=0.12):
+        return Arrow(
+            left.get_right() + RIGHT * buff,
+            right.get_left() - RIGHT * buff,
+            buff=0,
+            fill_color=color,
+            stroke_width=2.0,
+            thickness=0.025,
+            max_tip_length_to_length_ratio=0.12,
+        )
+
+    def make_face_crop(self, side=1.95, show_text=True):
+        crop_image = ImageMobject("croped.png")
+        crop_image.set_height(side)
+        if crop_image.get_width() > side:
+            crop_image.set_width(side)
+
+        frame = Square(side_length=side + 0.05)
+        frame.set_fill("#111318", opacity=0.24)
+        frame.set_stroke(WHITE, width=1.7, opacity=0.88)
+        frame.move_to(crop_image)
+
+        if not show_text:
+            return Group(crop_image, frame)
+
+        label_bg = RoundedRectangle(
+            width=side * 0.74,
+            height=0.28,
+            corner_radius=0.05,
+            stroke_width=0,
+            fill_color=BLACK,
+            fill_opacity=0.68,
+        )
+        label_bg.move_to(frame.get_bottom() + UP * 0.2)
+        label = self.mono("Face Crop", font_size=15, color=WHITE)
+        label.move_to(label_bg)
+
+        return Group(crop_image, frame, label_bg, label)
+
+    def make_tensor_stack(self, side=1.65, channel_files=None):
+        if channel_files is None:
+            channel_files = self.make_rgb_channel_files()
+
+        stack = Group()
+        specs = [
+            ("B", BLUE_B, RIGHT * 0.24 + UP * 0.18),
+            ("G", GREEN_B, RIGHT * 0.12 + UP * 0.09),
+            ("R", RED_B, ORIGIN),
+        ]
+        for channel, color, offset in specs:
+            channel_image = ImageMobject(channel_files[channel])
+            channel_image.set_height(side)
+            sq = Square(side_length=side)
+            sq.set_fill(BLACK, opacity=0)
+            sq.set_stroke(color, width=1.6, opacity=0.86)
+            sq.shift(offset)
+            channel_image.move_to(sq)
+            label = self.mono(channel, font_size=18, color=color)
+            label.move_to(sq.get_corner(UL) + RIGHT * 0.17 + DOWN * 0.17)
+            stack.add(Group(channel_image, sq, label))
+        shape = self.label_stack(
+            ["CLIP-READY TENSOR", "(3, 336, 336)", "normalized RGB"],
+            font_size=16,
+            color=WHITE,
+            buff=0.06,
+        )
+        shape.next_to(stack, DOWN, buff=0.22)
+        chw = self.mono("C x H x W = 3 x 336 x 336", font_size=15, color=GREY_A)
+        chw.next_to(shape, DOWN, buff=0.12)
+        return Group(stack, shape, chw)
+
+    def make_resize_grid(self, square_mob, rows=6, cols=6, color=WHITE):
+        lines = VGroup()
+        left = square_mob.get_left()[0]
+        right = square_mob.get_right()[0]
+        bottom = square_mob.get_bottom()[1]
+        top = square_mob.get_top()[1]
+
+        for i in range(1, cols):
+            x = left + (right - left) * i / cols
+            line = Line([x, bottom, 0], [x, top, 0])
+            line.set_stroke(color, width=0.8, opacity=0.45)
+            lines.add(line)
+
+        for i in range(1, rows):
+            y = bottom + (top - bottom) * i / rows
+            line = Line([left, y, 0], [right, y, 0])
+            line.set_stroke(color, width=0.8, opacity=0.45)
+            lines.add(line)
+
+        return lines
+
+    def make_rgb_channels_row(self, channel_files, side=0.92):
+        channels = Group()
+        specs = [
+            ("R", RED_B, channel_files["R"]),
+            ("G", GREEN_B, channel_files["G"]),
+            ("B", BLUE_B, channel_files["B"]),
+        ]
+        for name, color, path in specs:
+            image = ImageMobject(path)
+            image.set_height(side)
+            frame = Square(side_length=side + 0.04)
+            frame.set_stroke(color, width=1.4, opacity=0.9)
+            frame.move_to(image)
+            grid = self.make_resize_grid(frame, rows=7, cols=7, color=WHITE)
+            grid.set_stroke(opacity=0.32)
+            label = Tex(rf"\text{{{name}}}", font_size=18, color=color)
+            label.next_to(frame, DOWN, buff=0.07)
+            channels.add(Group(image, frame, grid, label))
+        channels.arrange(RIGHT, buff=0.32)
+        return channels
+
+    def make_photo_thumb(self, height=0.95):
+        photo = ImageMobject("rf_example.png")
+        photo.set_height(height)
+        frame = SurroundingRectangle(photo, buff=0.02)
+        frame.set_stroke(WHITE, width=1.0, opacity=0.75)
+        label = self.mono("input image", font_size=13, color=GREY_A)
+        label.next_to(frame, DOWN, buff=0.08)
+        return Group(photo, frame, label)
+
+    def construct(self):
+        self.camera.background_color = BLACK
+
+        # PART 1 -- RetinaFace: detect & crop
+        photo = ImageMobject("rf_example.png")
+        photo.set_height(3.9)
+        photo.move_to(UP * 0.2)
+        photo_frame = SurroundingRectangle(photo, buff=0.04)
+        photo_frame.set_stroke(WHITE, width=1.15, opacity=0.72)
+
+        input_label = Tex(r"\text{Input Image}", font_size=22, color=WHITE)
+        input_label.next_to(photo_frame, UP, buff=0.22)
+
+        retinaface_frame = SurroundingRectangle(photo, buff=0.16)
+        retinaface_frame.set_fill(GREY_E, opacity=0.045)
+        retinaface_frame.set_stroke(GREY_B, width=0.9, opacity=0.9)
+        retinaface_tag = Tex(r"\text{RetinaFace}", font_size=24, color=GREY_A)
+        retinaface_tag.next_to(retinaface_frame, DOWN, buff=0.12)
+
+        detect_color = YELLOW_B
+        expand_color = BLUE_B
+        crop_color = GREEN_B
+
+        bbox = Rectangle(
+            width=photo.get_width() * 0.18,
+            height=photo.get_height() * 0.30,
+            stroke_color=detect_color,
+            stroke_width=3.0,
+        )
+        bbox.move_to(
+            photo.get_center()
+            + RIGHT * photo.get_width() * 0.045
+            + UP * photo.get_height() * 0.115
+        )
+        bbox_tag = self.technical_tag(["face", "score: 0.97"], font_size=13, width=1.18)
+        bbox_tag.next_to(bbox, UP, buff=0.06)
+
+        expanded_bbox = Rectangle(
+            width=bbox.get_width() * 1.5,
+            height=bbox.get_height() * 1.5,
+            stroke_color=expand_color,
+            stroke_width=3.0,
+        )
+        expanded_bbox.move_to(bbox)
+
+        square_bbox = Square(side_length=expanded_bbox.get_height())
+        square_bbox.set_stroke(crop_color, width=3.2)
+        square_bbox.move_to(expanded_bbox)
+
+        left_bbox = Rectangle(
+            width=photo.get_width() * 0.15,
+            height=photo.get_height() * 0.24,
+            stroke_color=GREY_B,
+            stroke_width=2.0,
+        )
+        left_bbox.set_stroke(opacity=0.82)
+        left_bbox.move_to(
+            photo.get_center()
+            + LEFT * photo.get_width() * 0.405
+            + UP * photo.get_height() * 0.075
+        )
+        left_tag = self.technical_tag(["face", "score: 0.61"], font_size=12, width=1.18)
+        left_tag.next_to(left_bbox, UP, buff=0.06)
+
+        right_bbox = Rectangle(
+            width=photo.get_width() * 0.15,
+            height=photo.get_height() * 0.24,
+            stroke_color=GREY_B,
+            stroke_width=2.0,
+        )
+        right_bbox.set_stroke(opacity=0.82)
+        right_bbox.move_to(
+            photo.get_center()
+            + RIGHT * photo.get_width() * 0.295
+            + UP * photo.get_height() * 0.085
+        )
+        right_tag = self.technical_tag(["face", "score: 0.74"], font_size=12, width=1.05)
+        right_tag.next_to(right_bbox, UP, buff=0.06)
+
+        low_score_detections = VGroup(left_bbox, left_tag, right_bbox, right_tag)
+
+        step_1 = TexText("detect highest-confidence face", font_size=23, color=detect_color)
+        step_2 = TexText(r"expand bbox by \(+50\%\) margin", font_size=23, color=expand_color)
+        step_3 = TexText("square-crop", font_size=23, color=crop_color)
+        for step in (step_1, step_2, step_3):
+            step.next_to(retinaface_tag, DOWN, buff=0.24)
+
+        crop_final_center = RIGHT * 4.75 + DOWN * 0.42
+        crop_final_side = 1.58
+        crop = self.make_face_crop(side=square_bbox.get_height(), show_text=False)
+        crop.move_to(square_bbox)
+        crop_label = self.mono("Face Crop", font_size=18, color=WHITE)
+        crop_label.move_to(crop_final_center + UP * (crop_final_side / 2 + 0.34))
+        crop_detail = self.mono("(square, arbitrary pixel)", font_size=15, color=GREY_B)
+        crop_detail.move_to(crop_final_center + DOWN * (crop_final_side / 2 + 0.28))
+
+        failure = self.mono(
+            r"Failure path: no face found -> API returns 400 -> pipeline halts",
+            font_size=17,
+            color=GREY_B,
+        )
+        failure.to_edge(DOWN, buff=0.34)
+
+        part_1 = Group(
+            photo,
+            photo_frame,
+            input_label,
+            retinaface_frame,
+            retinaface_tag,
+            bbox,
+            bbox_tag,
+            low_score_detections,
+            step_1,
+            step_2,
+            step_3,
+            crop,
+            crop_label,
+            crop_detail,
+            failure,
+        )
+
+        self.play(
+            FadeIn(photo, shift=UP * 0.12),
+            FadeIn(retinaface_frame),
+            FadeIn(retinaface_tag, shift=DOWN * 0.05),
+            ShowCreation(photo_frame),
+            FadeIn(input_label, shift=UP * 0.08),
+            run_time=1.15,
+        )
+        self.play(
+            retinaface_frame.animate.set_stroke(detect_color, width=2.8, opacity=1.0),
+            FadeIn(step_1, shift=UP * 0.06),
+            run_time=0.45,
+        )
+        self.play(
+            ShowCreation(low_score_detections[0]),
+            FadeIn(low_score_detections[1], shift=UP * 0.05),
+            ShowCreation(low_score_detections[2]),
+            FadeIn(low_score_detections[3], shift=UP * 0.05),
+            ShowCreation(bbox),
+            FadeIn(bbox_tag, shift=RIGHT * 0.08),
+            run_time=0.95,
+        )
+        self.wait(0.25)
+        self.play(
+            retinaface_frame.animate.set_stroke(expand_color, width=2.8, opacity=1.0),
+            FadeOut(step_1, shift=UP * 0.04),
+            FadeIn(step_2, shift=UP * 0.06),
+            Transform(bbox, expanded_bbox),
+            bbox_tag.animate.next_to(expanded_bbox, UP, buff=0.06),
+            run_time=0.85,
+        )
+        self.wait(0.2)
+        self.play(
+            retinaface_frame.animate.set_stroke(crop_color, width=2.8, opacity=1.0),
+            FadeOut(step_2, shift=UP * 0.04),
+            FadeIn(step_3, shift=UP * 0.06),
+            Transform(bbox, square_bbox),
+            bbox_tag.animate.next_to(square_bbox, UP, buff=0.06),
+            run_time=0.85,
+        )
+        self.wait(0.2)
+        self.play(
+            FadeIn(crop[0]),
+            ReplacementTransform(bbox.copy(), crop[1]),
+            FadeOut(bbox_tag),
+            run_time=0.75,
+        )
+        self.play(
+            crop.animate.scale(crop_final_side / square_bbox.get_height()).move_to(crop_final_center),
+            FadeOut(step_3, shift=UP * 0.04),
+            FadeIn(crop_label, shift=UP * 0.08),
+            FadeIn(crop_detail, shift=UP * 0.08),
+            run_time=1.05,
+        )
+        self.play(FadeIn(failure, shift=UP * 0.08), run_time=0.55)
+        self.wait(1.2)
+
+        # PART 2 -- Preprocessing before the CLIP encoder
+        title_2 = TexText(
+            "Preprocessing before CLIP encoder",
+            font_size=34,
+            color=WHITE,
+        )
+        title_2.to_edge(UP, buff=0.42)
+
+        channel_files = self.make_rgb_channel_files()
+        resize_color = BLUE_B
+        normalize_color = GREEN_B
+        preprocess_center = ORIGIN + UP * 0.34
+        preprocess_side = 2.16
+
+        self.play(
+            FadeOut(Group(photo, photo_frame, input_label)),
+            FadeOut(VGroup(retinaface_frame, retinaface_tag, bbox, low_score_detections, crop_label, crop_detail, failure)),
+            crop.animate.scale(preprocess_side / crop_final_side).move_to(preprocess_center),
+            FadeIn(title_2, shift=UP * 0.08),
+            run_time=1.15,
+        )
+
+        preprocess_frame = SurroundingRectangle(crop, buff=0.18)
+        preprocess_frame.set_fill(GREY_E, opacity=0.045)
+        preprocess_frame.set_stroke(resize_color, width=1.2, opacity=0.95)
+        phase_label = TexText("resize", font_size=25, color=resize_color)
+        phase_label.next_to(preprocess_frame, DOWN, buff=0.12)
+        resize_caption = TexText("bilinear resize to 336x336", font_size=20, color=GREY_A)
+        resize_caption.next_to(phase_label, DOWN, buff=0.12)
+
+        self.play(
+            FadeIn(preprocess_frame),
+            FadeIn(phase_label, shift=UP * 0.06),
+            FadeIn(resize_caption, shift=UP * 0.06),
+            run_time=0.65,
+        )
+
+        resize_grid = self.make_resize_grid(crop[1], rows=7, cols=7, color=WHITE)
+        self.play(ShowCreation(resize_grid, lag_ratio=0.08), run_time=0.95)
+        self.wait(0.2)
+
+        crop_with_grid = Group(crop, resize_grid)
+        target_crop_center = UP * 1.22
+        crop_with_grid_target = crop_with_grid.copy()
+        crop_with_grid_target.move_to(target_crop_center)
+        preprocess_frame_target = SurroundingRectangle(crop_with_grid_target, buff=0.18)
+        preprocess_frame_target.set_fill(GREY_E, opacity=0.045)
+        preprocess_frame_target.set_stroke(normalize_color, width=1.2, opacity=0.95)
+        normalize_label = TexText("normalize", font_size=25, color=normalize_color)
+        normalize_label.next_to(preprocess_frame_target, DOWN, buff=0.12)
+        normalize_caption = TexText("RGB mean/std normalization", font_size=20, color=GREY_A)
+        normalize_caption.next_to(normalize_label, DOWN, buff=0.12)
+
+        self.play(
+            crop_with_grid.animate.move_to(target_crop_center),
+            Transform(preprocess_frame, preprocess_frame_target),
+            Transform(phase_label, normalize_label),
+            Transform(resize_caption, normalize_caption),
+            run_time=0.9,
+        )
+
+        rgb_row = self.make_rgb_channels_row(channel_files, side=0.88)
+        rgb_row.move_to(DOWN * 1.45)
+        tensor_label = self.label_stack(
+            ["CLIP-ready tensor", "(3, 336, 336)", "normalized RGB"],
+            font_size=17,
+            color=WHITE,
+            buff=0.07,
+        )
+        tensor_label.next_to(rgb_row, DOWN, buff=0.18)
+
+        self.play(
+            FadeIn(rgb_row, shift=DOWN * 0.16),
+            FadeIn(tensor_label, shift=UP * 0.08),
+            run_time=0.95,
+        )
+
+        self.wait(1.0)
+
+        self.wait(1.4)
