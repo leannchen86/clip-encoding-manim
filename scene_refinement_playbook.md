@@ -717,6 +717,93 @@ Reusable rule:
   3. side-label horizontal gap
   4. final lower-block fit inside frame
 
+#### Lesson: Match the visual metaphor to the object being explained
+
+Scene/file:
+- `batchnorm_vs_width_scene_sc15.py`
+
+Approved:
+- if the claim is about architecture, show the architecture directly
+- use actual layer columns, connection patterns, and intermediate modules when comparing networks
+- make the comparison object the same thing the caption is talking about
+- let the viewer read the left-right difference from structure before relying on text
+
+Not approved:
+- teaching an architecture claim only through downstream summary bars or feature strips
+- using a representation-level metaphor when the real teaching target is network design
+- forcing the viewer to mentally translate from "activation bars" back into "MLP architecture"
+
+Why:
+- viewers understand "wider network vs narrower network with BatchNorm" much faster when the screen literally contains two networks
+- when the visual object and the teaching claim are misaligned, the scene may be technically correct but still feel indirect
+
+Reusable rule:
+- if the narration says "this model / layer / module behaves differently," first try showing the model / layer / module itself rather than a proxy statistic
+
+#### Lesson: Use different visual channels for class identity, model state, and routing outcome
+
+Scenes/files:
+- `tight_clusters_attractor_scene_sc13.py`
+- `batchnorm_vs_width_scene_sc15.py`
+
+Approved:
+- keep class identity colors separate from decision highlights
+- use glow, stroke, opacity, or pulse to show a change in state before changing identity color
+- reserve solid fill changes for when an object's semantic identity truly changes
+
+Not approved:
+- one color doing double duty for both "this belongs to class X" and "the model currently favors class X"
+- recoloring a query/example point into a class color when the point is still conceptually a query/example
+
+Why:
+- viewers read fill color as identity very quickly
+- if the same color is reused for both identity and routing, the scene silently changes the meaning of the object
+
+Reusable rule:
+- when an object changes status but not identity, prefer highlight effects over full recoloring
+
+#### Lesson: If a metaphor can be mistaken for a different space, disclose the space explicitly
+
+Scene/file:
+- `full_batch_vs_minibatch_scene_sc16.py`
+
+Approved:
+- label toy optimization diagrams as a loss slice, parameter-space slice, or similar
+- label arrows by what they represent, such as gradient updates
+- label the destination if the scene uses an abstract "goal" point, such as lower loss
+
+Not approved:
+- assuming the viewer will infer whether a contour plot is embedding space, feature space, or loss landscape
+- relying on the creator's own ML intuition to disambiguate an abstract diagram
+
+Why:
+- many ML visuals reuse the same geometry for different ideas
+- even when a viewer guesses correctly, ambiguity costs attention and weakens the teaching beat
+
+Reusable rule:
+- if the same shape language could plausibly mean two different mathematical spaces, spend one short label to remove the ambiguity
+
+#### Lesson: A good abstraction is not just simpler; it is easier to name correctly at first glance
+
+Scenes/files:
+- `batchnorm_vs_width_scene_sc15.py`
+- `full_batch_vs_minibatch_scene_sc16.py`
+
+Approved:
+- after choosing a simplified metaphor, ask "what would a new viewer call this picture in one sentence?"
+- refine until the likely viewer description matches the intended teaching concept
+
+Not approved:
+- accepting a visual just because it is geometrically clean or verifier-safe
+- keeping a diagram whose first impression points to the wrong concept
+
+Why:
+- a scene can be layout-correct and still be semantically misleading
+- first-glance interpretation is often more important than local detail
+
+Reusable rule:
+- when reviewing a scene, critique it as if you are naming the concept from a still frame; if the likely answer is wrong, the scene still needs work
+
 ## Default Refinement Standard For Future Scenes
 
 For any remaining scene file in this repo, the target standard should be:

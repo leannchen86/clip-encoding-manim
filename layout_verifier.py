@@ -69,6 +69,46 @@ class LayoutVerifier:
                 f"(required minimum gap {min_gap:.2f})."
             )
 
+    def check_motion_path_clearance(
+        self,
+        label_name,
+        label_mob,
+        mover_name,
+        start_mob,
+        end_mob,
+        min_gap=0.0,
+    ):
+        """
+        Approximate a Transform/TransformFromCopy path as the swept bounding box
+        between the start and end mobjects, then ensure the label does not sit
+        inside that motion corridor.
+        """
+        label_bounds = self._bounds(label_mob, pad=min_gap / 2)
+        start_bounds = self._bounds(start_mob, pad=min_gap / 2)
+        end_bounds = self._bounds(end_mob, pad=min_gap / 2)
+
+        swept_bounds = {
+            "left": min(start_bounds["left"], end_bounds["left"]),
+            "right": max(start_bounds["right"], end_bounds["right"]),
+            "bottom": min(start_bounds["bottom"], end_bounds["bottom"]),
+            "top": max(start_bounds["top"], end_bounds["top"]),
+        }
+
+        overlaps_x = (
+            label_bounds["left"] < swept_bounds["right"]
+            and label_bounds["right"] > swept_bounds["left"]
+        )
+        overlaps_y = (
+            label_bounds["bottom"] < swept_bounds["top"]
+            and label_bounds["top"] > swept_bounds["bottom"]
+        )
+
+        if overlaps_x and overlaps_y:
+            self._record(
+                f"{mover_name} motion path overlaps {label_name} "
+                f"(required minimum gap {min_gap:.2f})."
+            )
+
     def check_curve_clearance(self, label_name, label_mob, curve_name, curve_mob, min_gap=0.0):
         points = curve_mob.get_points()
         if len(points) == 0:
