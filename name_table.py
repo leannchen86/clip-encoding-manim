@@ -1,6 +1,11 @@
 from manimlib import *
 import numpy as np
 
+CLIP_EMBED_DIM = 768
+HEAD_HIDDEN_DIM = 1024
+GENERIC_HIDDEN_DIM_TEX = r"\text{hidden}"
+CLASS_COUNT_SYMBOL = "C"
+
 
 class NameTable(Scene):
     def make_linear_block(self, label_text="Linear (Weight)", width=1.82, font_size=14):
@@ -28,7 +33,7 @@ class NameTable(Scene):
             fill_opacity=0.92,
         )
         label = Tex(
-            rf"\begin{{array}}{{c}}\text{{Linear}}\\{in_dim}\rightarrow{out_dim}\end{{array}}",
+            rf"\begin{{array}}{{c}}\text{{Linear}}\\{in_dim}\rightarrow {out_dim}\end{{array}}",
             font_size=17,
             color=WHITE,
         )
@@ -46,7 +51,7 @@ class NameTable(Scene):
             fill_opacity=0.92,
         )
         label = Tex(
-            r"\begin{array}{c}138\ \text{logits}\\\text{(real-valued)}\end{array}",
+            rf"\begin{{array}}{{c}}{CLASS_COUNT_SYMBOL}\ \text{{logits}}\\\text{{(real-valued)}}\end{{array}}",
             font_size=16,
             color=WHITE,
         )
@@ -122,11 +127,10 @@ class NameTable(Scene):
         column.arrange(DOWN, buff=0.17)
         return column
 
-    def make_param_counter(self, value):
-        latex_value = f"{value:,}".replace(",", "{,}")
-        return Tex(
-            rf"\text{{Total Trainable Params: }}{latex_value}",
-            font_size=25,
+    def make_param_note(self):
+        return TexText(
+            "Trainable params depend on hidden width and class count",
+            font_size=22,
             color=WHITE,
         )
 
@@ -147,7 +151,7 @@ class NameTable(Scene):
         mlp_head_title = Tex(r"\text{Trained MLP head}", font_size=36, color=WHITE)
         mlp_head_title.move_to(mlp_head_frame.get_top() + DOWN * 0.27)
         mlp_head_subtitle = Tex(
-            r"\text{248K params, the only thing that learned face}\rightarrow\text{name}",
+            r"\text{deployed probe head}",
             font_size=22,
             color=GREY_A,
         )
@@ -159,7 +163,7 @@ class NameTable(Scene):
         bias_block.next_to(linear_block, DOWN, buff=0.07)
 
         compact_batchnorm_block = self.make_linear_block(
-            "BatchNorm-1D (256)",
+            f"BatchNorm-1D ({HEAD_HIDDEN_DIM})",
             width=1.82,
         )
         compact_batchnorm_block.next_to(VGroup(linear_block, bias_block), RIGHT, buff=0.18)
@@ -168,14 +172,14 @@ class NameTable(Scene):
         relu_block = self.make_relu_block()
         relu_block.next_to(compact_batchnorm_block, RIGHT, buff=0.07)
 
-        merged_linear_block = self.make_dimension_linear_block(768, 256)
+        merged_linear_block = self.make_dimension_linear_block(CLIP_EMBED_DIM, HEAD_HIDDEN_DIM)
         merged_linear_block.move_to(VGroup(linear_block, bias_block).get_center())
 
-        second_linear_block = self.make_dimension_linear_block(256, 128)
+        second_linear_block = self.make_dimension_linear_block(HEAD_HIDDEN_DIM, GENERIC_HIDDEN_DIM_TEX)
         second_linear_block.next_to(relu_block, RIGHT, buff=0.07)
 
         batchnorm128_block = self.make_linear_block(
-            "BatchNorm-1D (128)",
+            "BatchNorm-1D",
             width=1.82,
             font_size=12,
         )
@@ -184,7 +188,7 @@ class NameTable(Scene):
         relu128_block = self.make_relu_block()
         relu128_block.next_to(batchnorm128_block, RIGHT, buff=0.07)
 
-        final_linear_block = self.make_dimension_linear_block(128, 138)
+        final_linear_block = self.make_dimension_linear_block(GENERIC_HIDDEN_DIM_TEX, CLASS_COUNT_SYMBOL)
         final_linear_block.next_to(relu_block, DOWN, buff=0.12)
         final_linear_block.align_to(relu_block, RIGHT)
         final_linear_block.shift(UP * 0.08)
@@ -225,8 +229,8 @@ class NameTable(Scene):
             final_linear_block,
             logits_block,
         )
-        param_counter = self.make_param_counter(248330)
-        param_counter.move_to(np.array([
+        param_note = self.make_param_note()
+        param_note.move_to(np.array([
             pipeline_group.get_center()[0],
             pipeline_group.get_top()[1] + 0.82,
             0.0,
@@ -238,7 +242,7 @@ class NameTable(Scene):
             mlp_head_subtitle,
             output138_vector,
             pipeline_group,
-            param_counter,
+            param_note,
         )
         self.wait(1.0)
 
@@ -261,7 +265,7 @@ class NameTable(Scene):
         output_title.move_to(logits_output_frame.get_top() + DOWN * 0.27)
 
         output_subtitle = TexText(
-            "138-dim vector of logits",
+            "class-count vector of logits",
             font_size=24,
             color=GREY_A,
         )
@@ -284,7 +288,7 @@ class NameTable(Scene):
             Transform(mlp_head_frame, old_frame_target),
             FadeOut(mlp_head_title, shift=UP * 0.05),
             FadeOut(mlp_head_subtitle, shift=DOWN * 0.04),
-            FadeOut(param_counter, shift=UP * 0.04),
+            FadeOut(param_note, shift=UP * 0.04),
             FadeOut(pipeline_without_logits, shift=DOWN * 0.08),
             FadeOut(logits_block[1], shift=DOWN * 0.03),
             Transform(logits_block[0], logits_output_frame),
@@ -295,7 +299,7 @@ class NameTable(Scene):
         self.wait(0.8)
 
         index_column = self.make_column(
-            ["0", "1", "2", "3", "4", "5", r"\vdots", "137"],
+            ["0", "1", "2", "3", "4", "5", r"\vdots", "C-1"],
             color=GREY_A,
             font_size=25,
         )
@@ -521,7 +525,7 @@ class NameTable(Scene):
         final_logit_column.align_to(final_name_column, UP)
 
         shared_logit_title = TexText(
-            "138 logits (real-valued)",
+            "C logits (real-valued)",
             font_size=25,
             color=WHITE,
         )
@@ -599,7 +603,7 @@ class NameTable(Scene):
         ]))
 
         probability_title = TexText(
-            "138 Probabilities (sum to 1.0)",
+            "C probabilities (sum to 1.0)",
             font_size=25,
             color=WHITE,
         )

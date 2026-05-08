@@ -3,6 +3,10 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 
+CLIP_EMBED_DIM = 768
+HEAD_HIDDEN_DIM = 1024
+CLASS_COUNT_SYMBOL = "C"
+
 
 class PipelineAnimation(Scene):
     def create_pipeline_block(
@@ -183,7 +187,7 @@ class PipelineAnimation(Scene):
         layers = VGroup()
         widths = [0.56, 0.86, 0.86, 0.56]
         heights = [2.1, 2.55, 2.25, 1.72]
-        labels = ["Input\n768", "Hidden", "Hidden", "Output\n138"]
+        labels = [f"Input\n{CLIP_EMBED_DIM}", f"Hidden\n{HEAD_HIDDEN_DIM}", "Hidden", f"Output\n{CLASS_COUNT_SYMBOL}"]
         for w, h, label in zip(widths, heights, labels):
             rect = RoundedRectangle(width=w, height=h, corner_radius=0.05)
             rect.set_fill("#12141b", opacity=0.95)
@@ -193,7 +197,7 @@ class PipelineAnimation(Scene):
             layers.add(VGroup(rect, text))
         layers.arrange(RIGHT, buff=0.28)
         title = Text("MLP classification head", font_size=25, color=WHITE)
-        subtitle = Text("trained on our name labels", font_size=18, color=GREY_B)
+        subtitle = Text("trained on the current class set", font_size=18, color=GREY_B)
         subtitle.next_to(title, DOWN, buff=0.1)
         label_group = VGroup(title, subtitle)
         label_group.next_to(layers, UP, buff=0.32)
@@ -276,9 +280,9 @@ class PipelineAnimation(Scene):
             ("PHOTO", ["any resolution", "JPEG / PNG"]),
             ("RetinaFace", ["detect + crop", "square crop", "face region"]),
             ("CLIP encoder", ["ViT-L/14", "@336px", "frozen", "336x336 RGB"]),
-            ("MLP", ["trained head", "768-dim vector"]),
-            ("Softmax", ["138 logits"]),
-            ("Top-10 names", ["138 probabilities", "sum = 1.0"]),
+            ("MLP", ["deployed head", f"hidden width {HEAD_HIDDEN_DIM}"]),
+            ("Softmax", [f"{CLASS_COUNT_SYMBOL} logits"]),
+            ("Top-ranked names", [f"{CLASS_COUNT_SYMBOL} probabilities", "sum = 1.0"]),
         ]
         blocks = VGroup()
         for title, lines in block_specs:
@@ -451,7 +455,7 @@ class PipelineAnimation(Scene):
         small_logits.move_to(RIGHT * 4.25 + DOWN * 0.1)
         logits_label = Text("logits", font_size=24, color=WHITE)
         logits_label.next_to(small_logits, DOWN, buff=0.22)
-        caption = Text("The MLP maps the CLIP embedding to name scores.", font_size=25, color=GREY_A)
+        caption = Text("The MLP maps the CLIP embedding to class scores.", font_size=25, color=GREY_A)
         caption.to_edge(DOWN, buff=0.45)
 
         self.play(FadeIn(vector2), FadeIn(emb_label), run_time=0.55)
@@ -463,7 +467,7 @@ class PipelineAnimation(Scene):
         self.clear_scene()
         logit_chart = self.create_logit_bars(logits, width=6.6, height=3.35)
         logit_chart.move_to(UP * 0.05)
-        logit_title = Text("138 logits", font_size=34, color=WHITE)
+        logit_title = Text(f"{CLASS_COUNT_SYMBOL} logits", font_size=34, color=WHITE)
         logit_title.to_edge(UP, buff=0.55)
         raw_note = Text("raw, unnormalized scores", font_size=22, color=GREY_B)
         raw_note.next_to(logit_title, DOWN, buff=0.18)
@@ -506,7 +510,7 @@ class PipelineAnimation(Scene):
 
         # FRAME 7 - Top-10 names
         self.clear_scene()
-        top_title = Text("Top-10 predicted names", font_size=34, color=WHITE)
+        top_title = Text("Top-ranked predicted names", font_size=34, color=WHITE)
         top_title.to_edge(UP, buff=0.5)
         top_list = self.create_top10_list()
         top_list.move_to(UP * 0.05)
@@ -521,7 +525,7 @@ class PipelineAnimation(Scene):
         self.clear_scene()
         overview2 = self.overview_group(clip_highlight=False)
         final_caption = Text(
-            "Frozen CLIP encoder + trained MLP head = consistent name ranking.",
+            "Frozen CLIP encoder + trained MLP head = consistent class ranking.",
             font_size=27,
             color=WHITE,
         )

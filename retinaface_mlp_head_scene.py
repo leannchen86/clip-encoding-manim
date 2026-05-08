@@ -1,6 +1,9 @@
 from manimlib import *
 import numpy as np
 
+CLIP_EMBED_DIM = 768
+HEAD_HIDDEN_DIM = 1024
+
 
 class RetinaFaceMLPHeadScene(Scene):
     def make_cls_embedding_vector(self):
@@ -98,12 +101,12 @@ class RetinaFaceMLPHeadScene(Scene):
         matrix_body = VGroup(*matrix[2:]) if len(matrix) > 2 else matrix
         height_brace = Brace(matrix, RIGHT, buff=0.06)
         height_brace.set_stroke(GREY_A, width=1.1, opacity=0.85)
-        height_label = Tex("256", font_size=30, color=GREY_A)
+        height_label = Tex(str(HEAD_HIDDEN_DIM), font_size=30, color=GREY_A)
         height_label.next_to(height_brace, RIGHT, buff=0.08)
 
         width_brace = Brace(matrix_body, DOWN, buff=0.07)
         width_brace.set_stroke(GREY_A, width=1.1, opacity=0.85)
-        width_label = Tex("768", font_size=30, color=GREY_A)
+        width_label = Tex(str(CLIP_EMBED_DIM), font_size=30, color=GREY_A)
         width_label.next_to(width_brace, DOWN, buff=0.08)
 
         name_label = Tex(rf"\text{{{name}}}", font_size=26, color=GREEN_B)
@@ -113,7 +116,7 @@ class RetinaFaceMLPHeadScene(Scene):
     def make_vector_annotations(self, vector, name=None, color=GREY_A, side=LEFT):
         height_brace = Brace(vector, side, buff=0.05)
         height_brace.set_stroke(color, width=1.0, opacity=0.82)
-        height_label = Tex("256", font_size=28, color=color)
+        height_label = Tex(str(HEAD_HIDDEN_DIM), font_size=28, color=color)
         height_label.next_to(height_brace, side, buff=0.08)
         labels = VGroup(height_brace, height_label)
         if name:
@@ -266,7 +269,7 @@ class RetinaFaceMLPHeadScene(Scene):
         mlp_head_title = Tex(r"\text{Trained MLP head}", font_size=36, color=WHITE)
         mlp_head_title.move_to(mlp_head_frame.get_top() + DOWN * 0.27)
         mlp_head_subtitle = Tex(
-            r"\text{248K params, the only thing that learned face}\rightarrow\text{name}",
+            r"\text{deployed probe head}",
             font_size=22,
             color=GREY_A,
         )
@@ -293,7 +296,7 @@ class RetinaFaceMLPHeadScene(Scene):
         )
         self.wait(1.25)
 
-        # PART 2 -- First linear layer compresses 768 dims to 256 dims
+        # PART 2 -- First linear layer projects 768 dims to 1024 dims
         numeric_embedding_vector = self.make_numeric_embedding_vector()
         numeric_embedding_vector.move_to(final_embedding_vector)
         weight_matrix = self.make_weight_matrix()
@@ -331,7 +334,7 @@ class RetinaFaceMLPHeadScene(Scene):
         biased_vector.move_to(compressed_vector)
         biased_annotations = self.make_vector_annotations(biased_vector, color=GREEN_B, side=LEFT)
         linear_caption = Tex(
-            r"\text{Linear }(768\rightarrow256)",
+            rf"\text{{Linear }}({CLIP_EMBED_DIM}\rightarrow{HEAD_HIDDEN_DIM})",
             font_size=25,
             color=GREEN_B,
         )
@@ -389,9 +392,9 @@ class RetinaFaceMLPHeadScene(Scene):
         )
         self.wait(0.9)
 
-        # PART 3 -- BatchNorm parameters operate on the 256-dim activation
+        # PART 3 -- BatchNorm parameters operate on the hidden activation
         batchnorm_caption = Tex(
-            r"\text{BatchNorm-1D }(256)",
+            rf"\text{{BatchNorm-1D }}({HEAD_HIDDEN_DIM})",
             font_size=25,
             color=BLUE_B,
         )
@@ -618,7 +621,7 @@ class RetinaFaceMLPHeadScene(Scene):
             run_time=0.3,
         )
 
-        batchnorm_block = self.make_linear_block("BatchNorm-1D (256)", width=2.25)
+        batchnorm_block = self.make_linear_block(f"BatchNorm-1D ({HEAD_HIDDEN_DIM})", width=2.25)
         batchnorm_block.next_to(VGroup(linear_block, bias_block), RIGHT, buff=0.18)
         batchnorm_objects = VGroup(
             bn_vectors,

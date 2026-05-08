@@ -1,6 +1,11 @@
 from manimlib import *
 import numpy as np
 
+CLIP_EMBED_DIM = 768
+HEAD_HIDDEN_DIM = 1024
+GENERIC_HIDDEN_DIM_TEX = r"\text{hidden}"
+CLASS_COUNT_SYMBOL = "C"
+
 
 class RetinaFaceMLPHeadScenePart2(Scene):
     def make_weight_matrix(self):
@@ -43,7 +48,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
     def make_vector_annotations(self, vector, name=None, color=GREY_A, side=LEFT):
         height_brace = Brace(vector, side, buff=0.05)
         height_brace.set_stroke(color, width=1.0, opacity=0.82)
-        height_label = Tex("256", font_size=28, color=color)
+        height_label = Tex(str(HEAD_HIDDEN_DIM), font_size=28, color=color)
         height_label.next_to(height_brace, side, buff=0.08)
         labels = VGroup(height_brace, height_label)
         if name:
@@ -77,7 +82,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             fill_opacity=0.92,
         )
         label = Tex(
-            rf"\begin{{array}}{{c}}\text{{Linear}}\\{in_dim}\rightarrow{out_dim}\end{{array}}",
+            rf"\begin{{array}}{{c}}\text{{Linear}}\\{in_dim}\rightarrow {out_dim}\end{{array}}",
             font_size=17,
             color=WHITE,
         )
@@ -95,7 +100,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             fill_opacity=0.92,
         )
         label = Tex(
-            r"\begin{array}{c}138\ \text{logits}\\\text{(real-valued)}\end{array}",
+            rf"\begin{{array}}{{c}}{CLASS_COUNT_SYMBOL}\ \text{{logits}}\\\text{{(real-valued)}}\end{{array}}",
             font_size=16,
             color=WHITE,
         )
@@ -118,12 +123,12 @@ class RetinaFaceMLPHeadScenePart2(Scene):
 
         rows_brace = Brace(matrix, RIGHT, buff=0.05)
         rows_brace.set_stroke(GREEN_B, width=0.9, opacity=0.86)
-        rows_label = Tex("138", font_size=21, color=GREEN_B)
+        rows_label = Tex(CLASS_COUNT_SYMBOL, font_size=21, color=GREEN_B)
         rows_label.next_to(rows_brace, RIGHT, buff=0.06)
 
         cols_brace = Brace(matrix, DOWN, buff=0.05)
         cols_brace.set_stroke(GREEN_B, width=0.9, opacity=0.86)
-        cols_label = Tex("128", font_size=21, color=GREEN_B)
+        cols_label = Tex(r"\text{hidden}", font_size=18, color=GREEN_B)
         cols_label.next_to(cols_brace, DOWN, buff=0.06)
         return VGroup(matrix, rows_brace, rows_label, cols_brace, cols_label)
 
@@ -227,7 +232,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         mlp_head_title = Tex(r"\text{Trained MLP head}", font_size=36, color=WHITE)
         mlp_head_title.move_to(mlp_head_frame.get_top() + DOWN * 0.27)
         mlp_head_subtitle = Tex(
-            r"\text{248K params, the only thing that learned face}\rightarrow\text{name}",
+            r"\text{deployed probe head}",
             font_size=22,
             color=GREY_A,
         )
@@ -265,11 +270,11 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         linear_block.move_to(LEFT * 3.75 + DOWN * 1.48)
         bias_block = self.make_linear_block("Linear (Bias)")
         bias_block.next_to(linear_block, DOWN, buff=0.07)
-        batchnorm_block = self.make_linear_block("BatchNorm-1D (256)", width=2.25)
+        batchnorm_block = self.make_linear_block(f"BatchNorm-1D ({HEAD_HIDDEN_DIM})", width=2.25)
         batchnorm_block.next_to(VGroup(linear_block, bias_block), RIGHT, buff=0.18)
 
         batchnorm_caption = Tex(
-            r"\text{BatchNorm-1D }(256)",
+            rf"\text{{BatchNorm-1D }}({HEAD_HIDDEN_DIM})",
             font_size=25,
             color=BLUE_B,
         )
@@ -326,7 +331,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             run_time=0.25,
         )
         compact_batchnorm_block = self.make_linear_block(
-            "BatchNorm-1D (256)",
+            f"BatchNorm-1D ({HEAD_HIDDEN_DIM})",
             width=1.82,
         )
         compact_batchnorm_block.next_to(VGroup(linear_block, bias_block), RIGHT, buff=0.18)
@@ -389,14 +394,14 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         centered_relu_vector.move_to(affine_vector.get_center() + UP * 0.35)
         length_brace = Brace(centered_relu_vector, UP, buff=0.08)
         length_brace.set_stroke(YELLOW_B, width=1.1, opacity=0.88)
-        length_label = Tex("256", font_size=28, color=YELLOW_B)
+        length_label = Tex(str(HEAD_HIDDEN_DIM), font_size=28, color=YELLOW_B)
         length_label.next_to(length_brace, UP, buff=0.08)
         length_group = VGroup(length_brace, length_label)
 
-        merged_linear_block = self.make_dimension_linear_block(768, 256)
+        merged_linear_block = self.make_dimension_linear_block(CLIP_EMBED_DIM, HEAD_HIDDEN_DIM)
         merged_linear_block.move_to(VGroup(linear_block, bias_block).get_center())
 
-        second_linear_block = self.make_dimension_linear_block(256, 128)
+        second_linear_block = self.make_dimension_linear_block(HEAD_HIDDEN_DIM, GENERIC_HIDDEN_DIM_TEX)
         second_linear_block.next_to(relu_block, RIGHT, buff=0.07)
 
         self.play(
@@ -422,7 +427,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         shortened_vector.move_to(centered_relu_vector)
         shortened_brace = Brace(shortened_vector, UP, buff=0.08)
         shortened_brace.set_stroke(GREEN_B, width=1.1, opacity=0.88)
-        shortened_label = Tex("128", font_size=28, color=GREEN_B)
+        shortened_label = Tex(GENERIC_HIDDEN_DIM_TEX, font_size=24, color=GREEN_B)
         shortened_label.next_to(shortened_brace, UP, buff=0.08)
         shortened_length_group = VGroup(shortened_brace, shortened_label)
 
@@ -457,7 +462,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         )
         bn_input_vector.move_to(shortened_vector.get_center() + UP * 0.55)
 
-        batchnorm128_block = self.make_linear_block("BatchNorm-1D (128)", width=1.82, font_size=12)
+        batchnorm128_block = self.make_linear_block("BatchNorm-1D", width=1.82, font_size=12)
         batchnorm128_block.next_to(second_linear_block, RIGHT, buff=0.07)
 
         self.play(
@@ -578,7 +583,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         )
         final_input_vector.move_to(relu128_vector.get_center() + DOWN * 0.55)
 
-        final_linear_block = self.make_dimension_linear_block(128, 138)
+        final_linear_block = self.make_dimension_linear_block(GENERIC_HIDDEN_DIM_TEX, CLASS_COUNT_SYMBOL)
         final_linear_block.next_to(relu_block, DOWN, buff=0.12)
         final_linear_block.align_to(relu_block, RIGHT)
         final_linear_block.shift(UP * 0.08)
@@ -605,7 +610,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
         output138_vector.shift(DOWN * 0.18)
         output138_brace = Brace(output138_vector, UP, buff=0.06)
         output138_brace.set_stroke(GREEN_B, width=0.9, opacity=0.88)
-        output138_label = Tex("138", font_size=23, color=GREEN_B)
+        output138_label = Tex(CLASS_COUNT_SYMBOL, font_size=23, color=GREEN_B)
         output138_label.next_to(output138_brace, UP, buff=0.06)
         output138_length_group = VGroup(output138_brace, output138_label)
 
@@ -641,7 +646,7 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             final_right_layer.animate.set_fill(WHITE, opacity=0.0).set_stroke(WHITE, width=1.45, opacity=0.85),
             run_time=0.25,
         )
-        row_caption = TexText("one matrix row per name", font_size=22, color=GREY_A)
+        row_caption = TexText("one matrix row per class", font_size=22, color=GREY_A)
         row_caption.next_to(final_mlp_network, RIGHT, buff=0.35)
         right_nodes = list(final_right_layer)
         self.play(
@@ -685,22 +690,6 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             run_time=0.85,
         )
 
-        def make_param_counter(value):
-            latex_value = f"{value:,}".replace(",", "{,}")
-            return Tex(
-                rf"\text{{Total Trainable Params: }}{latex_value}",
-                font_size=25,
-                color=WHITE,
-            )
-
-        def get_param_jump_values(start_value, end_value, n_steps=5):
-            values = [
-                int(round(start_value + (end_value - start_value) * alpha))
-                for alpha in np.linspace(1 / n_steps, 1, n_steps)
-            ]
-            values[-1] = end_value
-            return values
-
         pipeline_group = VGroup(
             merged_linear_block,
             batchnorm_block,
@@ -711,27 +700,24 @@ class RetinaFaceMLPHeadScenePart2(Scene):
             final_linear_block,
             logits_block,
         )
-        param_counter = make_param_counter(0)
-        param_counter.move_to(np.array([
+        param_note = TexText(
+            "Trainable params depend on hidden width and class count",
+            font_size=22,
+            color=WHITE,
+        )
+        param_note.move_to(np.array([
             pipeline_group.get_center()[0],
             pipeline_group.get_top()[1] + 0.82,
             0.0,
         ]))
         self.play(
-            FadeIn(param_counter, shift=UP * 0.04),
+            FadeIn(param_note, shift=UP * 0.04),
             run_time=0.45,
         )
 
-        param_steps = [
-            (merged_linear_block, 196864),
-            (batchnorm_block, 197376),
-            (second_linear_block, 230272),
-            (batchnorm128_block, 230528),
-            (final_linear_block, 248330),
-        ]
+        param_steps = [merged_linear_block, second_linear_block, final_linear_block]
         previous_block = None
-        current_param_value = 0
-        for block, target_value in param_steps:
+        for block in param_steps:
             animations = [
                 block[0].animate.set_stroke(YELLOW_B, width=2.35, opacity=1.0),
                 block[0].animate.set_fill("#25323d", opacity=0.98),
@@ -745,16 +731,8 @@ class RetinaFaceMLPHeadScenePart2(Scene):
                 *animations,
                 run_time=0.18,
             )
-            for jump_value in get_param_jump_values(current_param_value, target_value):
-                next_counter = make_param_counter(jump_value)
-                next_counter.move_to(param_counter)
-                self.play(
-                    Transform(param_counter, next_counter),
-                    run_time=0.055,
-                )
             self.wait(0.08)
             previous_block = block
-            current_param_value = target_value
         if previous_block is not None:
             self.play(
                 previous_block[0].animate.set_stroke(GREEN_B, width=1.15, opacity=0.9),
